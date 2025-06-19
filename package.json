@@ -1,0 +1,26 @@
+{
+  "name": "youtube-api-package",
+  "version": "1.0.0",
+  "description": "API para descargar música y videos desde YouTube en formato MP3 y MP4.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "*",
+    "express": "*",
+    "form-data": "*",
+    "yt-search": "*",
+    "@ytdl-han": "*"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "youtube",
+    "download",
+    "mp3",
+    "mp4",
+    "api"
+  ],
+  "author": "Tu Nombre",
+  "license": "MIT"
+}
