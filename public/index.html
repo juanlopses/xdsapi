@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Facebook Video Downloader</title>
+  <style>
+    /* Estilos globales */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    body {
+      background-color: #f7f9fc;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      padding: 20px;
+      overflow: hidden;
+      background: linear-gradient(135deg, #6e7dff, #88b2ff);
+    }
+
+    /* Contenedor principal */
+    .container {
+      background-color: #fff;
+      border-radius: 15px;
+      padding: 40px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      max-width: 600px;
+      width: 100%;
+      text-align: center;
+      transform: scale(0.98);
+      animation: scaleIn 0.6s ease-out forwards;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      margin-bottom: 20px;
+      color: #4CAF50;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      animation: fadeIn 1s ease-out;
+    }
+
+    /* Estilos del input */
+    input[type="text"] {
+      width: 100%;
+      padding: 14px;
+      margin: 15px 0;
+      border: 2px solid #ccc;
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: all 0.3s;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    input[type="text"]:focus {
+      border-color: #4CAF50;
+      outline: none;
+      box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+    }
+
+    /* Botón con efecto */
+    button {
+      padding: 14px 30px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1.1rem;
+      transition: background-color 0.3s ease-in-out, transform 0.2s ease;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    button:hover {
+      background-color: #45a049;
+      transform: scale(1.05);
+    }
+
+    /* Estilo del resultado */
+    .result {
+      margin-top: 30px;
+      font-size: 1.1rem;
+      color: #444;
+      opacity: 0;
+      animation: fadeIn 1s ease-out forwards;
+    }
+
+    .result a {
+      color: #4CAF50;
+      text-decoration: none;
+      font-weight: bold;
+      transition: color 0.3s ease;
+    }
+
+    .result a:hover {
+      color: #388e3c;
+      text-decoration: underline;
+    }
+
+    .result img {
+      margin-top: 20px;
+      border-radius: 10px;
+      max-width: 100%;
+      height: auto;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease;
+    }
+
+    .result img:hover {
+      transform: scale(1.03);
+    }
+
+    .error {
+      color: red;
+      font-weight: bold;
+      font-size: 1.2rem;
+      margin-top: 20px;
+    }
+
+    /* Animaciones */
+    @keyframes fadeIn {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    @keyframes scaleIn {
+      0% { transform: scale(0.8); }
+      100% { transform: scale(1); }
+    }
+
+    /* Efecto de foco en el input */
+    input[type="text"]:focus {
+      border-color: #6e7dff;
+      box-shadow: 0 0 10px rgba(110, 125, 255, 0.5);
+    }
+
+    /* Efecto en el contenedor */
+    .container:hover {
+      transform: scale(1.02);
+      transition: transform 0.3s ease-out;
+    }
+
+    /* Medias Queries para Responsividad */
+    @media (max-width: 768px) {
+      .container {
+        padding: 30px;
+      }
+
+      h1 {
+        font-size: 1.8rem;
+      }
+
+      input[type="text"] {
+        font-size: 1rem;
+        padding: 12px;
+      }
+
+      button {
+        font-size: 1rem;
+        padding: 12px 25px;
+      }
+
+      .result {
+        font-size: 1rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 10px;
+      }
+
+      .container {
+        padding: 20px;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      input[type="text"] {
+        font-size: 0.9rem;
+        padding: 10px;
+      }
+
+      button {
+        font-size: 1rem;
+        padding: 10px 20px;
+      }
+
+      .result {
+        font-size: 0.95rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Descargador de Videos de Facebook</h1>
+    <input type="text" id="videoUrl" placeholder="Pega la URL del video de Facebook">
+    <button onclick="downloadVideo()">Descargar Video</button>
+    <div id="result" class="result"></div>
+  </div>
+
+  <script>
+    async function downloadVideo() {
+      const url = document.getElementById('videoUrl').value;
+      if (!url) {
+        alert("Por favor, ingresa una URL válida.");
+        return;
+      }
+
+      try {
+        const response = await fetch('/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+
+        if (!response.ok) {
+          throw new Error('Error al obtener los detalles del video');
+        }
+
+        const data = await response.json();
+        const videoElement = `
+          <div class="fade-in">
+            <h3>${data.title}</h3>
+            <p><strong>Duración:</strong> ${Math.floor(data.duration_ms / 1000)} segundos</p>
+            <p><strong>Ver Video:</strong> <a href="${data.url}" target="_blank">Ver en Facebook</a></p>
+            <p><strong>Descargar en calidad SD:</strong> <a href="${data.sd}" target="_blank">Descargar</a></p>
+            <p><strong>Descargar en calidad HD:</strong> <a href="${data.hd}" target="_blank">Descargar</a></p>
+            <img src="${data.thumbnail}" alt="Thumbnail">
+          </div>
+        `;
+        document.getElementById('result').innerHTML = videoElement;
+      } catch (error) {
+        document.getElementById('result').innerHTML = `<p class="error">Error: ${error.message}</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
