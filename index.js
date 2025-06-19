@@ -1,154 +1,139 @@
 const express = require('express');
-const ytdl_han = require('@ytdl-han');
-const axios = require('axios');
-const ytSearch = require('yt-search');
-const FormData = require('form-data');
+const ytdl_han = require("@ytdl-han");
+const fs = require('fs');
+const path = require('path');
 const app = express();
-const port = 3000;
+const PORT = process.env.PORT || 3000;
 
-// Función para subir el archivo al servidor de tmpfiles.org
-const uploadToTmpFiles = async (fileBuffer, fileName) => {
-  const formData = new FormData();
-  formData.append('file', fileBuffer, fileName);
+// Almacenamiento temporal de archivos
+const archivosTemporales = {};
 
-  try {
-    const response = await axios.post('https://tmpfiles.org/api/v1/upload', formData, {
-      headers: formData.getHeaders(),
+// Configuración de middleware
+app.use(express.json());
+
+// Ruta principal de bienvenida
+app.get('/', (req, res) => {
+    res.send('API de Descarga de YouTube - newton');
+});
+
+// Ruta para procesar descargas
+app.get('/descargar', async (req, res) => {
+    try {
+        const { url, calidad } = req.query;
+        
+        if (!url) {
+            return res.status(400).json({ 
+                estado: 'error',
+                mensaje: 'Se requiere el parámetro URL' 
+            });
+        }
+
+        const opcionCalidad = calidad || '128kbps';
+        const resultado = await ytdl_han(url, opcionCalidad);
+        
+        // Generar ID único para el archivo
+        const idArchivo = Date.now().toString(36) + Math.random().toString(36).substr(2);
+        
+        // Determinar tipo de archivo
+        const esVideo = resultado.data.format.includes('video');
+        const extension = esVideo ? '.mp4' : '.mp3';
+        const nombreArchivo = `${idArchivo}${extension}`;
+        const rutaArchivo = path.join(__dirname, 'temporal', nombreArchivo);
+        
+        // Crear directorio temporal si no existe
+        if (!fs.existsSync(path.join(__dirname, 'temporal'))) {
+            fs.mkdirSync(path.join(__dirname, 'temporal'));
+        }
+        
+        // Guardar archivo temporal
+        fs.writeFileSync(rutaArchivo, resultado.data.format);
+        
+        // Registrar archivo temporal
+        archivosTemporales[idArchivo] = {
+            ruta: rutaArchivo,
+            expira: Date.now() + 30000 // 30 segundos
+        };
+        
+        // Programar eliminación automática
+        setTimeout(() => {
+            if (fs.existsSync(rutaArchivo)) {
+                fs.unlinkSync(rutaArchivo);
+                delete archivosTemporales[idArchivo];
+                console.log(`Archivo temporal ${idArchivo} eliminado`);
+            }
+        }, 30000);
+        
+        // Generar URL de descarga
+        const urlDescarga = `${req.protocol}://${req.get('host')}/descargar/${idArchivo}`;
+        
+        // Preparar respuesta
+        const respuesta = {
+            estado: 'éxito',
+            creador: 'newton',
+            datos: {
+                titulo: resultado.data.title,
+                tamaño: resultado.data.size,
+                miniatura: resultado.data.thumbnail,
+                id: resultado.data.id,
+                urlDescarga: urlDescarga,
+                expiraEn: '30 segundos',
+                tipo: esVideo ? 'video/mp4' : 'audio/mpeg',
+                formato: esVideo ? 'video' : 'audio'
+            }
+        };
+        
+        res.json(respuesta);
+        
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ 
+            estado: 'error',
+            mensaje: 'Error al procesar la solicitud',
+            error: error.message 
+        });
+    }
+});
+
+// Ruta para descargar archivos temporales
+app.get('/descargar/:idArchivo', (req, res) => {
+    const idArchivo = req.params.idArchivo;
+    const infoArchivo = archivosTemporales[idArchivo];
+    
+    if (!infoArchivo || !fs.existsSync(infoArchivo.ruta)) {
+        return res.status(404).json({ 
+            estado: 'error',
+            mensaje: 'Archivo no encontrado o enlace expirado' 
+        });
+    }
+    
+    // Configurar tipo de contenido y nombre de archivo
+    const esVideo = infoArchivo.ruta.endsWith('.mp4');
+    const tipoContenido = esVideo ? 'video/mp4' : 'audio/mpeg';
+    const nombreDescarga = esVideo ? 'video.mp4' : 'audio.mp3';
+    
+    // Enviar archivo para descarga
+    res.download(infoArchivo.ruta, nombreDescarga, (err) => {
+        if (err) {
+            console.error('Error al descargar:', err);
+        }
     });
-    return response.data;
-  } catch (error) {
-    console.error('Error al subir el archivo:', error);
-    throw new Error('No se pudo subir el archivo');
-  }
-};
-
-// Función para obtener información y descargar MP3
-const downloadAudio = async (url, quality = '128kbps') => {
-  // Obtener información del video/audio
-  const videoInfo = await ytdl_han(url, quality);
-
-  // Obtener el buffer del archivo de audio (en formato MP3)
-  const fileBuffer = videoInfo.data.format;
-  const fileName = `${videoInfo.data.title}.mp3`;
-
-  // Subir a tmpfiles.org
-  const uploadResponse = await uploadToTmpFiles(fileBuffer, fileName);
-
-  return {
-    title: videoInfo.data.title,
-    size: videoInfo.data.size,
-    thumbnail: videoInfo.data.thumbnail,
-    id: videoInfo.data.id,
-    uploaded_url: uploadResponse.data.url,
-    expires_in: uploadResponse.data.expires_in,
-  };
-};
-
-// Función para obtener información y descargar MP4
-const downloadVideo = async (url) => {
-  // Obtener información del video
-  const videoInfo = await ytdl_han(url, '1080p');
-
-  // Obtener el buffer del archivo de video (en formato MP4)
-  const fileBuffer = videoInfo.data.format;
-  const fileName = `${videoInfo.data.title}.mp4`;
-
-  // Subir a tmpfiles.org
-  const uploadResponse = await uploadToTmpFiles(fileBuffer, fileName);
-
-  return {
-    title: videoInfo.data.title,
-    size: videoInfo.data.size,
-    thumbnail: videoInfo.data.thumbnail,
-    id: videoInfo.data.id,
-    uploaded_url: uploadResponse.data.url,
-    expires_in: uploadResponse.data.expires_in,
-  };
-};
-
-// Función para verificar si el query es un enlace de YouTube
-const isYouTubeUrl = (url) => {
-  const regex = /^(https?\:\/\/)?(www\.youtube\.com|youtu\.be)\/.+$/;
-  return regex.test(url);
-};
-
-// Endpoint para buscar y descargar solo audio (MP3) por nombre o enlace
-app.get('/download/audio', async (req, res) => {
-  const { query, quality } = req.query;
-
-  if (!query) {
-    return res.status(400).json({ error: 'El parámetro "query" es obligatorio.' });
-  }
-
-  try {
-    let downloadResponse;
-
-    // Verificamos si el query es un enlace de YouTube
-    if (isYouTubeUrl(query)) {
-      console.log(`Descargando directamente desde URL de YouTube: ${query}`);
-      // Si es un enlace, descargamos directamente el audio
-      downloadResponse = await downloadAudio(query, quality);
-    } else {
-      // Si es texto, buscamos el video en YouTube
-      const results = await ytSearch(query);
-      if (results.videos.length === 0) {
-        return res.status(404).json({ error: 'No se encontraron resultados.' });
-      }
-
-      const firstVideo = results.videos[0]; // Obtener el primer video encontrado
-      console.log(`Buscando: ${firstVideo.title}`);
-      console.log(`URL: ${firstVideo.url}`);
-
-      // Descargar solo el audio (MP3)
-      downloadResponse = await downloadAudio(firstVideo.url, quality);
-    }
-
-    res.json(downloadResponse);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Ocurrió un error al realizar la búsqueda o descargar el archivo de audio.' });
-  }
 });
 
-// Endpoint para buscar y descargar solo video (MP4) por nombre o enlace
-app.get('/download/video', async (req, res) => {
-  const { query } = req.query;
+// Limpieza periódica de archivos temporales
+setInterval(() => {
+    const ahora = Date.now();
+    Object.keys(archivosTemporales).forEach(idArchivo => {
+        if (archivosTemporales[idArchivo].expira < ahora) {
+            if (fs.existsSync(archivosTemporales[idArchivo].ruta)) {
+                fs.unlinkSync(archivosTemporales[idArchivo].ruta);
+                delete archivosTemporales[idArchivo];
+                console.log(`Archivo temporal ${idArchivo} eliminado por limpieza automática`);
+            }
+        }
+    });
+}, 60000); // Cada minuto
 
-  if (!query) {
-    return res.status(400).json({ error: 'El parámetro "query" es obligatorio.' });
-  }
-
-  try {
-    let downloadResponse;
-
-    // Verificamos si el query es un enlace de YouTube
-    if (isYouTubeUrl(query)) {
-      console.log(`Descargando directamente desde URL de YouTube: ${query}`);
-      // Si es un enlace, descargamos directamente el video
-      downloadResponse = await downloadVideo(query);
-    } else {
-      // Si es texto, buscamos el video en YouTube
-      const results = await ytSearch(query);
-      if (results.videos.length === 0) {
-        return res.status(404).json({ error: 'No se encontraron resultados.' });
-      }
-
-      const firstVideo = results.videos[0]; // Obtener el primer video encontrado
-      console.log(`Buscando: ${firstVideo.title}`);
-      console.log(`URL: ${firstVideo.url}`);
-
-      // Descargar solo el video (MP4)
-      downloadResponse = await downloadVideo(firstVideo.url);
-    }
-
-    res.json(downloadResponse);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Ocurrió un error al realizar la búsqueda o descargar el archivo de video.' });
-  }
-});
-
-// Iniciar el servidor
-app.listen(port, () => {
-  console.log(`API corriendo en http://localhost:${port}`);
+// Iniciar servidor
+app.listen(PORT, () => {
+    console.log(`Servidor funcionando en el puerto ${PORT}`);
 });
