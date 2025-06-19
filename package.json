@@ -11,7 +11,7 @@
     "express": "*",
     "form-data": "*",
     "yt-search": "*",
-    "@ytdl-han": "*"
+    "@ytdl-han": "github:HanSamu-27/ytdl-han"
   },
   "devDependencies": {},
   "keywords": [
