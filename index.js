@@ -1,5 +1,5 @@
 const express = require('express');
-const ytdl_han = require("@ytdl-han");
+const ytdl_han = require('ytdl-han');
 const fs = require('fs');
 const path = require('path');
 const app = express();
@@ -13,7 +13,7 @@ app.use(express.json());
 
 // Ruta principal de bienvenida
 app.get('/', (req, res) => {
-    res.send('API de Descarga de YouTube - newton');
+    res.send('API de Descarga YouTube - newton');
 });
 
 // Ruta para procesar descargas
@@ -135,5 +135,5 @@ setInterval(() => {
 
 // Iniciar servidor
 app.listen(PORT, () => {
-    console.log(`Servidor funcionando en el puerto ${PORT}`);
+    console.log(`Servidor funcionando en http://localhost:${PORT}`);
 });
