@@ -19,7 +19,7 @@
   "author": "newton",
   "license": "MIT",
   "dependencies": {
-    "@ytdl-han": "github:HanSamu-27/ytdl-han",
+    "ytdl-han": "github:HanSamu-27/ytdl-han",
     "express": "*",
     "fs-extra": "*"
   },
@@ -28,17 +28,5 @@
   },
   "engines": {
     "node": ">=16.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/tu-usuario/api-descarga-youtube.git"
-  },
-  "bugs": {
-    "url": "https://github.com/tu-usuario/api-descarga-youtube/issues"
-  },
-  "homepage": "https://github.com/tu-usuario/api-descarga-youtube#readme",
-  "config": {
-    "puerto": 3000,
-    "tiempoExpiracion": "30s"
   }
 }
